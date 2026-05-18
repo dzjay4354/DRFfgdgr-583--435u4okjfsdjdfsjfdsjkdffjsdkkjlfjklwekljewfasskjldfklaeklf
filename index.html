@@ -1,0 +1,1967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media &amp; Comms Project Explorer</title>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<style>
+  :root {
+    --primary:       #003E5A;
+    --primary-70:    rgba(0,62,90,0.7);
+    --primary-45:    rgba(0,62,90,0.45);
+    --primary-20:    rgba(0,62,90,0.2);
+    --teal:          #00797A;
+    --teal-70:       rgba(0,121,122,0.7);
+    --teal-45:       rgba(0,121,122,0.45);
+    --teal-20:       rgba(0,121,122,0.2);
+    --white:         #ffffff;
+    --white-70:      rgba(255,255,255,0.7);
+    --white-45:      rgba(255,255,255,0.45);
+    --white-20:      rgba(255,255,255,0.2);
+    --blue:          #2d7592;
+    --amber:         #f2af00;
+    --orange:        #d47b22;
+    --red:           #b94527;
+    --cream:         #e8d4c1;
+    --mint:          #89ccb5;
+    --dark-teal:     #005260;
+    --chart-bg:      #f1f2f2;
+    --bg:            #003E5A;
+    --surface:       #003E5A;
+    --border:        rgba(0,121,122,0.6);
+    --accent:        #89ccb5;
+    --accent2:       #f2af00;
+    --warn:          #f2af00;
+    --danger:        #b94527;
+    --text:          #ffffff;
+    --muted:         rgba(255,255,255,0.6);
+    --list-w:        260px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: #F1F2F2;
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  /* ── Header ──────────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 18px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    flex-shrink: 0; z-index: 1000;
+  }
+  header .logo {
+    font-family: Arial, monospace; font-size: 16px; font-weight: 700;
+    color: var(--accent); letter-spacing: 0.05em; white-space: nowrap;
+  }
+  header .subtitle { font-size: 14px; color: var(--muted); }
+  header .spacer { flex: 1; }
+
+  .status-pill {
+    font-size: 13px; font-family: Arial, monospace;
+    padding: 4px 12px; border-radius: 20px;
+    background: transparent; border: 1px solid var(--border); color: var(--muted); transition: all 0.3s;
+  }
+  .status-pill.ready   { border-color: var(--accent2); color: var(--accent2); }
+  .status-pill.loading { border-color: var(--warn);    color: var(--warn); }
+  .status-pill.error   { border-color: var(--danger);  color: var(--danger); }
+
+  /* ── Filter bar ──────────────────────────────────────── */
+  #filterBar {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 20px; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  }
+  #filterBar .filter-bar-label {
+    font-family: Arial, monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  #filterBar .filter-divider {
+    width: 1px; height: 24px; background: var(--border); flex-shrink: 0;
+  }
+
+  /* Filter chip */
+  .filter-chip {
+    display: flex; align-items: center; gap: 0;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    flex-shrink: 0; transition: border-color 0.15s;
+    min-width: 155px; position: relative;
+  }
+  .filter-chip:focus-within { border-color: var(--accent); }
+  .filter-chip.has-value { border-color: var(--accent2); }
+  .filter-chip-label {
+    font-size: 11px; font-family: Arial, monospace; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted);
+    padding: 0 10px; white-space: nowrap; border-right: 1px solid var(--border);
+    height: 100%; display: flex; align-items: center; background: rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }
+  .filter-chip select { display: none; }
+
+  .fc-wrap {
+    flex: 1; position: relative; min-width: 0; display: flex; align-items: center;
+  }
+  .fc-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-size: 13px; font-family: Arial, sans-serif;
+    padding: 8px 24px 8px 10px; cursor: pointer; min-width: 0; width: 100%;
+  }
+  .fc-input::placeholder { color: var(--muted); }
+  .fc-clear {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; font-size: 12px; padding: 0; line-height: 1;
+  }
+  .fc-clear:hover { color: var(--text); }
+  .fc-dropdown {
+    position: fixed;
+    z-index: 9000;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; max-height: 220px; overflow-y: auto;
+    display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    scrollbar-width: thin; scrollbar-color: var(--teal-45) transparent;
+    min-width: 180px;
+  }
+  .fc-dropdown.open { display: block; }
+  .fc-option {
+    padding: 7px 12px; font-size: 12px; color: var(--text); cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.05); font-family: Arial, sans-serif;
+  }
+  .fc-option:hover, .fc-option.active { background: rgba(255,255,255,0.08); color: var(--accent2); }
+  .fc-option:last-child { border-bottom: none; }
+
+  #filterCount {
+    font-size: 12px; font-family: Arial, monospace; color: var(--accent2);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  #clearFiltersBtn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    font-size: 12px; font-family: Arial, monospace; cursor: pointer;
+    padding: 6px 12px; border-radius: 4px; transition: all 0.15s; flex-shrink: 0;
+  }
+  #clearFiltersBtn:hover { border-color: var(--danger); color: var(--danger); }
+  #clearFiltersBtn.active { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── Main workspace ──────────────────────────────────── */
+  .workspace { display: flex; flex: 1; overflow: hidden; gap: 8px; min-height: 0; }
+
+  /* ── Project list panel ──────────────────────────────── */
+  #projectListPanel {
+    width: var(--list-w); flex-shrink: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #projectListPanel .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .section-label {
+    font-family: Arial, monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase;
+  }
+  #projectListCount { font-size: 12px; color: var(--muted); font-family: Arial, monospace; }
+  #projectList {
+    flex: 1; overflow-y: auto; padding: 8px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+
+  /* Teal scrollbar — applied globally to all scrollable areas */
+  #projectList::-webkit-scrollbar,
+  .lga-search-results::-webkit-scrollbar,
+  .log-scroll::-webkit-scrollbar,
+  .selection-panel-body::-webkit-scrollbar { width: 6px; }
+
+  #projectList::-webkit-scrollbar-track,
+  .lga-search-results::-webkit-scrollbar-track,
+  .log-scroll::-webkit-scrollbar-track,
+  .selection-panel-body::-webkit-scrollbar-track { background: transparent; }
+
+  #projectList::-webkit-scrollbar-thumb,
+  .lga-search-results::-webkit-scrollbar-thumb,
+  .log-scroll::-webkit-scrollbar-thumb,
+  .selection-panel-body::-webkit-scrollbar-thumb { background: var(--teal-45); border-radius: 3px; }
+
+  #projectList::-webkit-scrollbar-thumb:hover,
+  .lga-search-results::-webkit-scrollbar-thumb:hover,
+  .log-scroll::-webkit-scrollbar-thumb:hover,
+  .selection-panel-body::-webkit-scrollbar-thumb:hover { background: var(--teal); }
+
+  #projectList       { scrollbar-width: thin; scrollbar-color: var(--teal-45) transparent; }
+  .lga-search-results { scrollbar-width: thin; scrollbar-color: var(--teal-45) transparent; }
+  .log-scroll         { scrollbar-width: thin; scrollbar-color: var(--teal-45) transparent; }
+  .selection-panel-body { scrollbar-width: thin; scrollbar-color: var(--teal-45) transparent; }
+
+  .proj-list-item {
+    padding: 8px 10px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 5px; cursor: pointer; transition: border-color 0.15s, background 0.15s; flex-shrink: 0;
+  }
+  .proj-list-item:hover { border-color: var(--accent2); background: rgba(242,175,0,0.08); }
+  .proj-list-item .proj-title { font-size: 13px; color: var(--text); line-height: 1.3; margin-bottom: 3px; }
+  .proj-list-item .proj-meta  { font-size: 11px; color: var(--muted); font-family: Arial, monospace; }
+
+  /* ── Map ─────────────────────────────────────────────── */
+  .map-wrap { flex: 1; position: relative; border-radius: 10px; overflow: hidden; border: 1px solid #003E5A; }
+  #map { width: 100%; height: 100%; background: var(--chart-bg); }
+
+  /* Map legend overlay */
+  #mapLegend {
+    position: absolute; bottom: 28px; left: 12px; z-index: 900;
+    background: #F1F2F2; border: 1px solid #003E5A; border-radius: 6px;
+    padding: 10px 14px; font-size: 13px;
+  }
+  .legend-label { font-size: 12px; color: #003E5A; font-family: Arial, sans-serif; }
+  .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .legend-row:last-child { margin-bottom: 0; }
+  .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-swatch-line {
+    width: 18px; height: 0; flex-shrink: 0;
+    border-top-width: 2px; border-top-style: solid;
+  }
+  .legend-swatch-dash {
+    width: 18px; height: 0; flex-shrink: 0;
+    border-top-width: 2px; border-top-style: dashed;
+  }
+
+  /* Basemap picker */
+  .basemap-toggle {
+    position: absolute; bottom: 28px; right: 100px; z-index: 900;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 11px; font-family: Arial, monospace;
+    color: var(--muted); cursor: pointer; user-select: none;
+    transition: border-color 0.2s, color 0.2s, right 0.3s ease;
+  }
+  .basemap-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .map-wrap.panel-open .basemap-toggle { right: 440px; }
+
+  .basemap-picker {
+    position: absolute; bottom: 64px; right: 12px; z-index: 900;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; width: 280px; display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    transition: right 0.3s ease;
+  }
+  .basemap-picker.open { display: block; }
+  .map-wrap.panel-open .basemap-picker { right: 352px; }
+  .basemap-picker-title {
+    font-family: Arial, monospace; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px;
+  }
+  .basemap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .basemap-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer; border-radius: 6px; padding: 4px;
+    border: 2px solid transparent; transition: border-color 0.15s;
+  }
+  .basemap-item:hover { border-color: var(--accent); }
+  .basemap-item.active { border-color: #f2af00; }
+  .basemap-thumb {
+    width: 100%; aspect-ratio: 4/3; border-radius: 4px; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .basemap-label { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.2; }
+  .basemap-item.active .basemap-label { color: #f2af00; }
+
+  /* Console */
+  .console-toggle {
+    position: absolute; bottom: 28px; right: 12px; z-index: 900;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 11px; font-family: Arial, monospace;
+    color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: border-color 0.2s, color 0.2s, right 0.3s ease; user-select: none;
+  }
+  .console-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .map-wrap.panel-open .console-toggle { right: 352px; }
+  .console-toggle .log-badge {
+    background: var(--danger); color: var(--primary);
+    border-radius: 10px; font-size: 9px; padding: 1px 5px; display: none;
+  }
+  .console-toggle .log-badge.visible { display: inline-block; }
+  .console-float {
+    position: absolute; bottom: 64px; right: 12px;
+    width: 380px; height: 220px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; z-index: 900;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    transition: right 0.3s ease;
+  }
+  .map-wrap.panel-open .console-float { right: 352px; }
+  .console-float.open { display: flex; }
+  .console-float-header {
+    display: flex; align-items: center; padding: 7px 12px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .console-float-title {
+    font-family: Arial, monospace; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; flex: 1;
+  }
+  .console-clear {
+    font-size: 12px; font-family: Arial, monospace; color: var(--muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    border: 1px solid transparent; background: transparent; transition: all 0.15s;
+  }
+  .console-clear:hover { border-color: var(--border); color: var(--text); }
+  .log-scroll { flex: 1; overflow-y: auto; padding: 6px 12px 8px; font-family: Arial, monospace; font-size: 12px; line-height: 1.6; }
+  .log-entry { margin-bottom: 2px; }
+  .log-entry.info  { color: var(--muted); }
+  .log-entry.ok    { color: var(--accent2); }
+  .log-entry.warn  { color: var(--warn); }
+  .log-entry.error { color: var(--danger); }
+  .log-entry .ts   { color: var(--border); margin-right: 4px; }
+
+  /* LGA Search */
+  .lga-search-box {
+    display: flex; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .lga-search-box:focus-within { border-color: var(--accent); }
+  .lga-search-icon { color: var(--muted); font-size: 15px; margin-right: 6px; flex-shrink: 0; }
+  .lga-search-box input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: Arial, sans-serif; font-size: 12px; padding: 8px 0;
+  }
+  .lga-search-box input::placeholder { color: var(--muted); }
+  .lga-search-clear {
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; font-size: 12px; padding: 2px 4px; flex-shrink: 0;
+  }
+  .lga-search-clear:hover { color: var(--text); }
+  .lga-search-results {
+    background: var(--surface); border: 1px solid var(--border);
+    border-top: none; border-radius: 0 0 6px 6px;
+    max-height: 220px; overflow-y: auto; display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .lga-search-results.open { display: block; }
+  .lga-result-item {
+    padding: 8px 12px; font-size: 12px; font-family: Arial, sans-serif;
+    cursor: pointer; color: var(--text);
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .lga-result-item:last-child { border-bottom: none; }
+  .lga-result-item:hover, .lga-result-item.active { background: rgba(88,166,255,0.1); color: var(--accent); }
+  .lga-result-state { font-size: 10px; color: var(--muted); font-family: Arial, monospace; }
+  .lga-result-item.active .lga-result-state { color: var(--accent); opacity: 0.7; }
+
+  /* Leaflet overrides */
+  .leaflet-container { background: var(--chart-bg) !important; }
+  .leaflet-control-zoom a, .leaflet-control-home a {
+    background: var(--surface) !important; color: var(--text) !important; border-color: var(--border) !important;
+  }
+  .leaflet-control-zoom a:hover, .leaflet-control-home a:hover { background: var(--bg) !important; }
+  .leaflet-control-home { margin-top: 5px !important; }
+  .leaflet-control-attribution { background: rgba(13,17,23,0.8) !important; color: var(--muted) !important; font-size: 10px !important; }
+  .leaflet-control-attribution a { color: var(--accent) !important; }
+  .leaflet-popup-content-wrapper { background: #fff !important; border-radius: 6px !important; box-shadow: 0 3px 16px rgba(0,0,0,0.4) !important; }
+  .leaflet-popup-tip { background: #fff !important; }
+  .leaflet-popup-content { margin: 10px 12px !important; }
+
+  /* LGA / STE labels */
+  .lga-label {
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    font-family: Arial, sans-serif; font-size: 10px; font-weight: 600; color: var(--teal);
+    text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+    white-space: nowrap; pointer-events: none; text-align: center; transform: translate(-50%, -50%);
+  }
+  .lga-label::before { display: none !important; }
+  .ste-label {
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    font-family: Arial, sans-serif; font-size: 9px; font-weight: 700; color: var(--primary);
+    text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+    white-space: nowrap; pointer-events: none; text-align: center;
+    transform: translate(-50%, -50%); letter-spacing: 0.04em;
+  }
+  .ste-label::before { display: none !important; }
+  .ste-label-act { transform: translate(2px, -50%) !important; padding-left: 2px !important; }
+  .ste-label-act::before { display: none !important; }
+  .lga-tip {
+    background: var(--surface) !important; border: 1px solid var(--border) !important;
+    color: var(--text) !important; font-family: Arial, sans-serif !important;
+    font-size: 11px !important; border-radius: 4px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+  }
+  .lga-tip::before { display: none !important; }
+
+  .project-tip {
+    background: var(--primary) !important;
+    border: 1px solid var(--accent2) !important;
+    border-left: 3px solid var(--accent2) !important;
+    color: var(--accent2) !important;
+    font-family: Arial, sans-serif !important;
+    font-size: 11px !important; font-weight: 600 !important;
+    border-radius: 4px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+  }
+  .project-tip::before { display: none !important; }
+  /* ── Project selection right panel ───────────────────────── */
+  .selection-panel {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 0;
+    z-index: 800;
+    background: var(--surface);
+    border-left: 2px solid var(--accent2);
+    overflow: hidden;
+    opacity: 0;
+    transition: width 0.3s ease, opacity 0.25s ease;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+  }
+  .selection-panel.open {
+    width: 340px;
+    opacity: 1;
+    pointer-events: all;
+  }
+  .selection-panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }
+  .selection-panel-tag {
+    font-family: Arial, monospace; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent2);
+    display: block; line-height: 1.5; word-break: break-word;
+  }
+  .selection-panel-clear {
+    position: absolute; top: 50%; right: 12px; transform: translateY(-50%);
+    padding: 3px 10px; background: transparent;
+    border: 1px solid var(--border); color: var(--muted);
+    border-radius: 4px; font-size: 11px; cursor: pointer;
+    font-family: Arial, monospace; transition: all 0.15s;
+  }
+  .selection-panel-body {
+    flex: 1;
+    padding: 14px 16px;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MEDIA &amp; COMMS PROJECT EXPLORER</div>
+  <div class="subtitle">exploring a proof of concept…</div>
+  <div class="spacer"></div>
+  <div class="status-pill" id="statusPill">IDLE</div>
+</header>
+
+<!-- Filter bar — full width, between header and workspace -->
+<div id="filterBar">
+  <span class="filter-bar-label">Filter</span>
+
+  <div class="filter-chip" id="chipState">
+    <span class="filter-chip-label">State</span>
+    <div class="fc-wrap">
+      <input class="fc-input" id="fcState" type="text" placeholder="All" autocomplete="off"/>
+      <button class="fc-clear" id="fcClearState" onclick="fcClear('state')" style="display:none">✕</button>
+      <div class="fc-dropdown" id="fcDropState"></div>
+    </div>
+    <select id="filterState" style="display:none"><option value="">All</option></select>
+  </div>
+
+  <div class="filter-chip" id="chipLGA">
+    <span class="filter-chip-label">LGA</span>
+    <div class="fc-wrap">
+      <input class="fc-input" id="fcLGA" type="text" placeholder="All" autocomplete="off"/>
+      <button class="fc-clear" id="fcClearLGA" onclick="fcClear('lga')" style="display:none">✕</button>
+      <div class="fc-dropdown" id="fcDropLGA"></div>
+    </div>
+    <select id="filterLGA" style="display:none"><option value="">All</option></select>
+  </div>
+
+  <div class="filter-chip" id="chipProgram">
+    <span class="filter-chip-label">Program</span>
+    <div class="fc-wrap">
+      <input class="fc-input" id="fcProgram" type="text" placeholder="All" autocomplete="off"/>
+      <button class="fc-clear" id="fcClearProgram" onclick="fcClear('program')" style="display:none">✕</button>
+      <div class="fc-dropdown" id="fcDropProgram"></div>
+    </div>
+    <select id="filterProgram" style="display:none"><option value="">All</option></select>
+  </div>
+
+  <div class="filter-chip" id="chipSubprogram">
+    <span class="filter-chip-label">Sub-program</span>
+    <div class="fc-wrap">
+      <input class="fc-input" id="fcSubprogram" type="text" placeholder="All" autocomplete="off"/>
+      <button class="fc-clear" id="fcClearSubprogram" onclick="fcClear('subprogram')" style="display:none">✕</button>
+      <div class="fc-dropdown" id="fcDropSubprogram"></div>
+    </div>
+    <select id="filterSubprogram" style="display:none"><option value="">All</option></select>
+  </div>
+
+  <div class="filter-divider"></div>
+  <span id="filterCount" style="display:none"></span>
+  <button id="clearFiltersBtn" onclick="clearProjectFilters()">✕ Clear</button>
+</div>
+
+<div class="workspace">
+
+  <!-- Project list panel -->
+  <div id="projectListPanel">
+    <div class="panel-header">
+      <span class="section-label">Projects</span>
+      <span id="projectListCount" style="font-size:12px;color:var(--muted);font-family:Arial,monospace"></span>
+    </div>
+    <!-- Project search input -->
+    <div style="padding:8px 8px 4px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;background:var(--bg);border:1px solid var(--border);
+                  border-radius:5px;padding:0 8px" id="projListSearchBox">
+        <span style="color:var(--muted);font-size:14px;margin-right:6px;flex-shrink:0">⌕</span>
+        <input type="text" id="projectSearchInput" placeholder="Search…"
+               oninput="filterProjectList(this.value)" autocomplete="off"
+               style="flex:1;background:transparent;border:none;outline:none;color:var(--text);
+                      font-size:12px;padding:6px 0;font-family:Arial,sans-serif"/>
+        <button id="projectSearchClear" onclick="clearProjectListSearch()"
+                style="display:none;background:transparent;border:none;color:var(--muted);
+                       cursor:pointer;font-size:12px;padding:2px 0 2px 4px;flex-shrink:0">✕</button>
+      </div>
+    </div>
+    <div id="projectList">
+      <div id="projectListSkeleton" style="padding:4px;display:flex;flex-direction:column;gap:4px">
+        <div style="font-size:11px;color:var(--muted);font-family:Arial,monospace;padding:8px;text-align:center;letter-spacing:0.05em">Loading projects…</div>
+        <!-- Skeleton placeholder rows -->
+        <div style="height:42px;background:var(--bg);border:1px solid var(--border);border-radius:5px;opacity:0.5"></div>
+        <div style="height:42px;background:var(--bg);border:1px solid var(--border);border-radius:5px;opacity:0.4"></div>
+        <div style="height:42px;background:var(--bg);border:1px solid var(--border);border-radius:5px;opacity:0.3"></div>
+        <div style="height:42px;background:var(--bg);border:1px solid var(--border);border-radius:5px;opacity:0.2"></div>
+        <div style="height:42px;background:var(--bg);border:1px solid var(--border);border-radius:5px;opacity:0.15"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <!-- Map legend -->
+    <div id="mapLegend">
+      <div class="legend-row">
+        <div class="legend-dot" style="background:#f2af00;border:1.5px solid #003E5A;width:10px;height:10px"></div>
+        <span class="legend-label">Projects</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch-dash" style="border-top-color:#003E5A"></div>
+        <span class="legend-label">LGA Boundaries</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch-line" style="border-top-color:#00797A"></div>
+        <span class="legend-label">State / Territory</span>
+      </div>
+    </div>
+
+    <!-- Basemap switcher -->
+    <div class="basemap-toggle" id="basemapToggle" onclick="toggleBasemapPicker()">⊞ Basemap</div>
+    <div class="basemap-picker" id="basemapPicker">
+      <div class="basemap-picker-title">Choose Basemap</div>
+      <div class="basemap-grid" id="basemapGrid"></div>
+    </div>
+
+    <!-- LGA Search -->
+    <div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:900;display:flex;gap:8px;align-items:flex-start">
+      <div id="lgaSearchWrap">
+        <div class="lga-search-box">
+          <span class="lga-search-icon">⌕</span>
+          <input type="text" id="lgaSearchInput" placeholder="Search LGA…"
+                 oninput="onLGASearch(this.value)" onkeydown="onLGASearchKey(event)" autocomplete="off"/>
+          <button class="lga-search-clear" id="lgaSearchClear" onclick="clearLGASearch()" style="display:none">✕</button>
+        </div>
+        <div class="lga-search-results" id="lgaSearchResults"></div>
+      </div>
+    </div>
+
+    <!-- Project selection panel — slides in from right -->
+    <div id="selectionBar" class="selection-panel">
+      <div class="selection-panel-header">
+        <span id="selectionPanelTag" class="selection-panel-tag">⌖ Selected Project</span>
+      </div>
+      <div id="selectionBarBody" class="selection-panel-body"></div>
+    </div>
+
+    <!-- Floating console -->
+    <div class="console-float" id="consoleFloat">
+      <div class="console-float-header">
+        <span class="console-float-title">Console</span>
+        <button class="console-clear" onclick="clearConsole()">Clear</button>
+        <button class="console-clear" onclick="toggleConsole()" style="margin-left:4px">✕</button>
+      </div>
+      <div class="log-scroll" id="logScroll"></div>
+    </div>
+
+    <!-- Console toggle button -->
+    <div class="console-toggle" id="consoleToggle" onclick="toggleConsole()">
+      ⌨ Console
+      <span class="log-badge" id="logBadge">!</span>
+    </div>
+
+  </div><!-- /map-wrap -->
+
+</div><!-- /workspace -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const CONFIG = {
+  layers: {
+    STE: {
+      name:      'State / Territory',
+      baseUrl:   'https://services-ap1.arcgis.com/EiaPtTiEArHVnvWM/arcgis/rest/services/Internal_State_Borders/FeatureServer/0/query',
+      color:     '#00797A',
+      nameField: ['ste_name_2021','STE_NAME_2021','state_name_2021','STATE_NAME_2021','STE_NAME21','STE_NAME','STATE_NAME','name','NAME']
+    },
+    LGA: {
+      name:      'LGA Boundaries',
+      baseUrl:   'https://geo.abs.gov.au/arcgis/rest/services/ASGS2021/LGA/FeatureServer/0/query',
+      color:     '#89ccb5',
+      nameField: ['LGA_NAME_2021','LGA_NAME21','LGA_NAME','LGA_name','lga_name','NAME','name'],
+      codeField: ['lga_code_2021','LGA_CODE_2021','LGA_CODE21','lga_code21','LGA_CODE','lga_code','CODE','code']
+    },
+    Projects: {
+      name:    'Projects',
+      baseUrl: 'https://services-ap1.arcgis.com/EiaPtTiEArHVnvWM/ArcGIS/rest/services/Alternative_Map_Layers/FeatureServer/0/query',
+      color:   '#f2af00'
+    }
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const state = {
+  map:           null,
+  leafletLayers: { LGA: null, STE: null, Projects: null },
+  geoData:       { LGA: null, STE: null, Projects: null },
+  lgaNameField:  null,
+  lgaCodeField:  null,   // field name for LGA code in the boundary layer
+  lgaCodeIndex:  {},     // LGA_CODE → Leaflet layer, built after LGA renders
+  layersReady:   false,
+  _highlightedLGA:     null,
+  _updateSTELabels:    null,
+  updateZoomVisibility: null,
+  steLabels:     []
+};
+
+// ═══════════════════════════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════════════════════════
+function initMap() {
+  state.map = L.map('map', {
+    center: [-25.5, 134],
+    zoom: 5,
+    minZoom: 5,
+    maxBounds: [[-55, 95], [5, 175]],
+    maxBoundsViscosity: 1.0,
+    zoomControl: true
+  });
+
+  // Home button
+  const HomeControl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: () => {
+      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-home');
+      const btn = L.DomUtil.create('a', '', container);
+      btn.innerHTML = '⌂';
+      btn.title     = 'Zoom to Australia';
+      btn.href      = '#';
+      btn.setAttribute('role', 'button');
+      L.DomEvent.on(btn, 'click', L.DomEvent.stop);
+      L.DomEvent.on(btn, 'click', () => state.map.setView([-25.5, 134], 5));
+      return container;
+    }
+  });
+  new HomeControl().addTo(state.map);
+
+  // Custom panes — STE renders above LGA, Projects above both
+  state.map.createPane('lgaPane');
+  state.map.createPane('stePane');
+  state.map.createPane('projectsPane');
+  state.map.getPane('lgaPane').style.zIndex      = 350;
+  state.map.getPane('stePane').style.zIndex      = 360;
+  state.map.getPane('projectsPane').style.zIndex = 370;
+
+  log('Map initialised', 'ok');
+
+  // ── Zoom-based layer visibility ──────────────────────────
+  // Zoom ≤ 6  → STE visible, LGA hidden
+  // Zoom ≥ 7  → STE + LGA visible
+  const ZOOM_NATIONAL = 6;
+
+  function updateZoomVisibility() {
+    const z = state.map.getZoom();
+
+    // STE always visible at all zoom levels
+    if (state.leafletLayers.STE && !state.map.hasLayer(state.leafletLayers.STE)) {
+      state.map.addLayer(state.leafletLayers.STE);
+    }
+    if (state._updateSTELabels) state._updateSTELabels();
+
+    // If a project selection is active, keep LGA + Projects visible regardless of zoom
+    if (state.selectionOverrideZoom) return;
+
+    if (z <= ZOOM_NATIONAL) {
+      if (state.leafletLayers.LGA && state.map.hasLayer(state.leafletLayers.LGA))
+        state.map.removeLayer(state.leafletLayers.LGA);
+      if (state.leafletLayers.Projects && state.map.hasLayer(state.leafletLayers.Projects))
+        state.map.removeLayer(state.leafletLayers.Projects);
+    } else {
+      if (state.leafletLayers.LGA && true &&
+          !state.map.hasLayer(state.leafletLayers.LGA))
+        state.map.addLayer(state.leafletLayers.LGA);
+      if (state.leafletLayers.Projects && true &&
+          !state.map.hasLayer(state.leafletLayers.Projects))
+        state.map.addLayer(state.leafletLayers.Projects);
+    }
+  }
+
+  state.map.on('zoomend', updateZoomVisibility);
+  state.map.on('moveend', updateZoomVisibility);
+  state.updateZoomVisibility = updateZoomVisibility;
+
+  initBasemapPicker();
+  loadAllLayers();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BASEMAP PICKER
+// ═══════════════════════════════════════════════════════════
+const BASEMAPS = [
+  { id: 'ocean',      label: 'Ocean',           icon: '🌊', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', maxZoom: 13, attr: 'Tiles © Esri' },
+  { id: 'topo',       label: 'Topographic',     icon: '⛰',  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', maxZoom: 19, attr: 'Tiles © Esri' },
+  { id: 'street',     label: 'Streets',         icon: '🛣',  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', maxZoom: 19, attr: 'Tiles © Esri' },
+  { id: 'imagery',    label: 'Imagery',         icon: '🛰',  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', maxZoom: 19, attr: 'Tiles © Esri' },
+  { id: 'darkgrey',   label: 'Dark Grey',       icon: '◼',  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', maxZoom: 16, attr: 'Tiles © Esri' },
+  { id: 'lightgrey',  label: 'Light Grey',      icon: '◻',  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', maxZoom: 16, attr: 'Tiles © Esri' },
+  { id: 'natgeo',     label: 'Nat. Geographic', icon: '🗺',  url: 'https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', maxZoom: 16, attr: 'Tiles © Esri, National Geographic' },
+  { id: 'cartolight', label: 'Carto Light',     icon: '☀',  url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', maxZoom: 19, attr: '© OpenStreetMap · © CARTO', subdomains: 'abcd' },
+  { id: 'cartodark',  label: 'Carto Dark',      icon: '🌙',  url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', maxZoom: 19, attr: '© OpenStreetMap · © CARTO', subdomains: 'abcd' },
+];
+
+let _activeBasemapId    = 'ocean';
+let _activeBasemapLayer = null;
+
+function initBasemapPicker() {
+  const grid = document.getElementById('basemapGrid');
+  grid.innerHTML = BASEMAPS.map(b => `
+    <div class="basemap-item ${b.id === _activeBasemapId ? 'active' : ''}"
+         id="bm-${b.id}" onclick="switchBasemap('${b.id}')">
+      <div class="basemap-thumb">${b.icon}</div>
+      <div class="basemap-label">${b.label}</div>
+    </div>`).join('');
+  switchBasemap(_activeBasemapId);
+  document.addEventListener('click', e => {
+    if (!document.getElementById('basemapPicker')?.contains(e.target) &&
+        !document.getElementById('basemapToggle')?.contains(e.target)) {
+      document.getElementById('basemapPicker')?.classList.remove('open');
+    }
+  });
+}
+
+function toggleBasemapPicker() {
+  document.getElementById('basemapPicker').classList.toggle('open');
+}
+
+function switchBasemap(id) {
+  const bm = BASEMAPS.find(b => b.id === id);
+  if (!bm) return;
+  if (_activeBasemapLayer) state.map.removeLayer(_activeBasemapLayer);
+  _activeBasemapLayer = L.tileLayer(bm.url, {
+    attribution: bm.attr, maxZoom: bm.maxZoom, subdomains: bm.subdomains || 'abc'
+  });
+  _activeBasemapLayer.addTo(state.map);
+  _activeBasemapLayer.bringToBack();
+  document.querySelectorAll('.basemap-item').forEach(el => el.classList.remove('active'));
+  document.getElementById(`bm-${id}`)?.classList.add('active');
+  _activeBasemapId = id;
+  document.getElementById('basemapPicker').classList.remove('open');
+  log(`Basemap: ${bm.label}`, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD LAYERS
+// ═══════════════════════════════════════════════════════════
+async function loadAllLayers() {
+  setStatus('loading');
+  log('Fetching layers…', 'info');
+
+  try {
+    log('Loading LGA Boundaries (ABS)…', 'info');
+    const lgaData = await fetchGeoJSON('LGA');
+    state.geoData.LGA = lgaData;
+
+    // Detect LGA name and code fields
+    if (lgaData.features.length > 0) {
+      const props = lgaData.features[0].properties;
+      state.lgaNameField = CONFIG.layers.LGA.nameField.find(f => props[f] !== undefined);
+      if (!state.lgaNameField) {
+        state.lgaNameField = Object.keys(props).find(k =>
+          k.toUpperCase().includes('NAME') && !k.toUpperCase().includes('CODE')
+        );
+      }
+      if (!state.lgaNameField) {
+        state.lgaNameField = Object.keys(props).find(k => !k.toUpperCase().includes('CODE'));
+      }
+      state.lgaCodeField = CONFIG.layers.LGA.codeField.find(f => props[f] !== undefined);
+      log(`LGA name field: "${state.lgaNameField}", code field: "${state.lgaCodeField}"`, 'ok');
+    }
+
+    renderLayer('LGA', lgaData);
+
+    // Build code → Leaflet layer index for fast matching
+    state.lgaCodeIndex = {};
+    if (state.leafletLayers.LGA && state.lgaCodeField) {
+      state.leafletLayers.LGA.eachLayer(layer => {
+        const code = layer.feature?.properties?.[state.lgaCodeField];
+        if (code != null) state.lgaCodeIndex[String(code)] = layer;
+      });
+      log(`LGA code index built: ${Object.keys(state.lgaCodeIndex).length} entries`, 'ok');
+    }
+    log(`LGA Boundaries: ${lgaData.features.length.toLocaleString()} features`, 'ok');
+    if (state.updateZoomVisibility) state.updateZoomVisibility();
+  } catch(e) {
+    log(`Error loading LGA: ${e.message}`, 'error');
+  }
+
+  try {
+    log('Loading State / Territory…', 'info');
+    const steData = await fetchGeoJSON('STE');
+    state.geoData.STE = steData;
+    renderLayer('STE', steData);
+    log(`State / Territory: ${steData.features.length.toLocaleString()} features`, 'ok');
+    if (state.updateZoomVisibility) state.updateZoomVisibility();
+  } catch(e) {
+    log(`Error loading STE: ${e.message}`, 'error');
+  }
+
+  state.layersReady = true;
+  if (state.updateZoomVisibility) state.updateZoomVisibility();
+  setStatus('ready');
+
+  // Defer Projects loading until after base layers are ready
+  loadProjectsLayer();
+}
+
+// ═══════════════════════════════════════════════════════════
+// JSONP — works from file:// without CORS errors
+// ═══════════════════════════════════════════════════════════
+let _cbIdx = 0;
+function jsonp(url, params) {
+  return new Promise((resolve, reject) => {
+    const cb = '__cb' + (_cbIdx++);
+    let script;
+    const tmr = setTimeout(() => { cleanup(); reject(new Error('Timeout for ' + url)); }, 30000);
+    function cleanup() { clearTimeout(tmr); delete window[cb]; if (script && script.parentNode) document.head.removeChild(script); }
+    window[cb] = data => { cleanup(); resolve(data); };
+    const qs = Object.entries(params).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+    script = document.createElement('script');
+    script.src = `${url}?${qs}&callback=${cb}`;
+    script.onerror = () => { cleanup(); reject(new Error('Network error loading ' + url)); };
+    document.head.appendChild(script);
+  });
+}
+
+// Convert Esri JSON (returned by JSONP) to GeoJSON
+function esriToGeoJSON(esri) {
+  if (esri.type === 'FeatureCollection') return esri;
+  const features = (esri.features || []).map(f => {
+    const g = f.geometry;
+    let geometry = null;
+    if (g) {
+      if (g.rings)            geometry = { type: g.rings.length === 1 ? 'Polygon' : 'MultiPolygon', coordinates: g.rings.length === 1 ? g.rings : [g.rings] };
+      else if (g.paths)       geometry = { type: 'MultiLineString', coordinates: g.paths };
+      else if (g.x !== undefined) geometry = { type: 'Point', coordinates: [g.x, g.y] };
+    }
+    return { type: 'Feature', geometry, properties: f.attributes || {} };
+  });
+  return { type: 'FeatureCollection', features };
+}
+
+async function fetchGeoJSON(key) {
+  const cfg      = CONFIG.layers[key];
+  const pageSize = 2000;
+  let offset = 0, allFeatures = [], exceeded = true;
+
+  while (exceeded) {
+    const data = await jsonp(cfg.baseUrl, {
+      outFields:         '*',
+      where:             '1=1',
+      f:                 'json',
+      outSR:             '4326',
+      resultOffset:      offset,
+      resultRecordCount: pageSize
+    });
+    if (data.error) throw new Error(data.error.message || 'ArcGIS error');
+    const gj   = esriToGeoJSON(data);
+    const page = gj.features || [];
+    allFeatures = allFeatures.concat(page);
+    exceeded = data.exceededTransferLimit === true;
+    offset  += page.length;
+    if (page.length > 0 && exceeded) log(`${cfg.name}: ${allFeatures.length.toLocaleString()} loaded, fetching more…`, 'info');
+    if (page.length === 0) break;
+  }
+
+  return { type: 'FeatureCollection', features: allFeatures };
+}
+
+
+async function loadProjectsLayer() {
+  try {
+    log('Loading Projects…', 'info');
+    const data = await fetchGeoJSON('Projects');
+    state.geoData.Projects = data;
+    renderLayer('Projects', data);
+    log(`Projects: ${data.features.length.toLocaleString()} features`, 'ok');
+    if (state.updateZoomVisibility) state.updateZoomVisibility();
+    buildProjectFilterDropdowns();
+    applyProjectFilters();
+    initFilterChips();
+  } catch(e) {
+    log(`Error loading Projects: ${e.message}`, 'error');
+  }
+}
+
+
+function renderLayer(key, geojson) {
+  if (state.leafletLayers[key]) state.map.removeLayer(state.leafletLayers[key]);
+
+  if (key === 'STE') {
+    const STE_LABEL_MIN_ZOOM = 3;
+    const STE_MAX_ZOOM       = 6;
+    const ACT_LABEL_POS      = [-35.5, 150.8];
+    const ACT_ANCHOR_POS     = [-35.5, 149.1];
+
+    state.leafletLayers.STE = L.geoJSON(geojson, {
+      style: { color: '#00797A', weight: 1.5, opacity: 0.8, pane: 'stePane' },
+      pane: 'stePane'
+    }); // added by updateZoomVisibility
+
+    buildSTELabels(STE_LABEL_MIN_ZOOM, STE_MAX_ZOOM, ACT_LABEL_POS, ACT_ANCHOR_POS);
+    return;
+  }
+
+  if (key === 'Projects') {
+    state.leafletLayers.Projects = L.geoJSON(geojson, {
+      pane: 'projectsPane',
+      pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+        radius:      7,
+        fillColor:   '#f2af00',
+        color:       '#003E5A',
+        weight:      1.5,
+        fillOpacity: 0.9,
+        pane:        'projectsPane'
+      }),
+      onEachFeature: (f, layer) => {
+        const p = f.properties || {};
+        const fmt = v => (v != null && v !== '') ? v : '—';
+        const fmtCurrency = v => (v != null && v !== '') ? '$' + Number(v).toLocaleString() : '—';
+        const safeTitle = (p.project_title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        layer.bindTooltip(fmt(p.project_title), { sticky: true, className: 'project-tip' });
+
+        layer.on('click', () => {
+          // Build LGA-by-state list from all features sharing this project_title
+          let lgaByStateHtml = '';
+          if (state.geoData.Projects && p.project_title) {
+            const siblings = state.geoData.Projects.features.filter(
+              s => s.properties?.project_title === p.project_title && s.properties?.LGA_NAME
+            );
+            const byState = {};
+            siblings.forEach(s => {
+              const sp = s.properties;
+              const stateKey = sp.STE_ABB || sp.STE_NAME || '?';
+              if (!byState[stateKey]) byState[stateKey] = new Set();
+              byState[stateKey].add(sp.LGA_NAME);
+            });
+            const statesSorted = Object.keys(byState).sort();
+            if (statesSorted.length) {
+              lgaByStateHtml = `
+                <div style="margin-top:8px;padding-top:7px;border-top:1px solid #eee">
+                  <div style="font-size:10px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">LGAs</div>
+                  ${statesSorted.map(st => `
+                    <div style="margin-bottom:4px">
+                      <span style="font-size:10px;font-weight:700;color:#003E5A;font-family:Arial,monospace">${st}:</span>
+                      <span style="font-size:10px;color:#444"> ${[...byState[st]].sort().join(', ')}</span>
+                    </div>`).join('')}
+                </div>`;
+            }
+          }
+
+          layer.bindPopup(`
+            <div style="font-family:Arial,sans-serif;min-width:200px;max-width:300px">
+              <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#003E5A;line-height:1.3">
+                ${fmt(p.project_title)}
+              </div>
+              <table style="font-size:11px;width:100%;border-collapse:collapse">
+                <tr><td style="color:#666;padding:2px 8px 2px 0;white-space:nowrap;vertical-align:top">Program</td>
+                    <td style="color:#333">${fmt(p.parent_program_name || p.program_name)}</td></tr>
+                <tr><td style="color:#666;padding:2px 8px 2px 0;white-space:nowrap;vertical-align:top">Sub-program</td>
+                    <td style="color:#333">${fmt(p.sub_program_name)}</td></tr>
+                <tr><td style="color:#666;padding:2px 8px 2px 0;white-space:nowrap">Funding</td>
+                    <td style="color:#333;font-weight:600">${fmtCurrency(p.project_value_funding)}</td></tr>
+                <tr><td style="color:#666;padding:2px 8px 2px 0;white-space:nowrap">Total value</td>
+                    <td style="color:#333;font-weight:600">${fmtCurrency(p.project_value_total)}</td></tr>
+              </table>
+              ${p.project_description ? `<div style="font-size:10px;color:#555;margin-top:6px;line-height:1.4;border-top:1px solid #eee;padding-top:6px">${p.project_description.slice(0,200)}${p.project_description.length > 200 ? '…' : ''}</div>` : ''}
+              ${lgaByStateHtml}
+              <button onclick="zoomToProjectsByTitle('${safeTitle}')"
+                      style="margin-top:8px;width:100%;padding:5px 8px;background:#003E5A;color:#fff;
+                             border:none;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;
+                             font-family:Arial,sans-serif">
+                ⌖ Select Project
+              </button>
+              <button onclick="clearProjectSelection()"
+                      style="margin-top:4px;width:100%;padding:4px 8px;background:transparent;color:#666;
+                             border:1px solid #ddd;border-radius:4px;font-size:10px;cursor:pointer;
+                             font-family:Arial,sans-serif">
+                ✕ Clear selection
+              </button>
+            </div>`, { maxWidth: 320 }
+          ).openPopup();
+        });
+      }
+    }); // added by updateZoomVisibility
+    return;
+  }
+
+  if (key === 'LGA') {
+    const LABEL_MIN_ZOOM = 9;
+
+    state.leafletLayers.LGA = L.geoJSON(geojson, {
+      style: { color: '#003E5A', weight: 1, fillColor: '#003E5A', fillOpacity: 0.04, opacity: 0.7, dashArray: '4 4', pane: 'lgaPane' },
+      pane: 'lgaPane',
+      onEachFeature: (f, layer) => {
+        const name = getLGAName(f);
+
+        // Hover tooltip
+        layer.bindTooltip(name, { sticky: true, className: 'lga-tip' });
+
+        // Click — highlight + filter projects (click same LGA again to clear)
+        layer.on('click', () => {
+          const isAlreadySelected = state._highlightedLGA === layer;
+
+          if (state._highlightedLGA && state._highlightedLGA !== layer) {
+            state._highlightedLGA.setStyle({
+              color: '#003E5A', weight: 1, fillColor: '#003E5A',
+              fillOpacity: 0.04, opacity: 0.7, dashArray: '4 4'
+            });
+          }
+
+          if (isAlreadySelected) {
+            // Deselect — restore style, clear LGA filter
+            layer.setStyle({ color: '#003E5A', weight: 1, fillColor: '#003E5A', fillOpacity: 0.04, opacity: 0.7, dashArray: '4 4' });
+            state._highlightedLGA = null;
+            state.map.closePopup();
+            fcSelect('lga', '', '');
+            return;
+          }
+
+          // Select new LGA
+          layer.setStyle({ color: '#f2af00', weight: 2.5, fillColor: '#f2af00', fillOpacity: 0.18, dashArray: null });
+          layer.bringToFront();
+          state._highlightedLGA = layer;
+
+          // Set LGA filter and update project list + map points
+          fcSelect('lga', name, name);
+
+          const profileUrl = `https://www.nema.gov.au/sites/default/files/LGAProfiles/${encodeURIComponent(name)}%20-%20LGA%20profile.docx`;
+          layer.bindPopup(`
+            <div style="font-family:Arial,sans-serif;min-width:180px">
+              <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:#003E5A">${name}</div>
+              <a href="${profileUrl}" target="_blank" rel="noopener noreferrer"
+                 style="display:inline-flex;align-items:center;gap:5px;background:#003E5A;color:#fff;
+                        font-size:11px;font-weight:600;padding:5px 10px;border-radius:4px;text-decoration:none"
+                 title="Download LGA Profile from NEMA">↓ LGA Profile</a>
+              <div style="font-size:9px;color:#999;margin-top:6px;line-height:1.4">
+                Source: NEMA. Opens in a new tab.<br>Not all LGAs have a profile available.
+              </div>
+            </div>`, { maxWidth: 240 }
+          ).openPopup();
+        });
+
+        // Permanent label (zoom ≥ 9) — placed at bbox centre
+        layer.on('add', () => {
+          try {
+            const coords = f.geometry?.type === 'MultiPolygon'
+              ? f.geometry.coordinates.flat(2)
+              : f.geometry?.coordinates?.flat(1) || [];
+            if (!coords.length) return;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            coords.forEach(([x, y]) => { if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; });
+            const lat = (minY + maxY) / 2, lng = (minX + maxX) / 2;
+
+            const label = L.tooltip({
+              permanent: true, direction: 'center',
+              className: 'lga-label', interactive: false, opacity: 1
+            }).setContent(name).setLatLng([lat, lng]);
+
+            layer._lgaLabel = label;
+
+            const updateVisibility = () => {
+              const zoom = state.map.getZoom();
+              if (zoom >= LABEL_MIN_ZOOM) { if (!state.map.hasLayer(label)) label.addTo(state.map); }
+              else                        { if (state.map.hasLayer(label))  state.map.removeLayer(label); }
+            };
+            state.map.on('zoomend', updateVisibility);
+            layer.on('remove', () => { state.map.removeLayer(label); state.map.off('zoomend', updateVisibility); });
+            updateVisibility();
+          } catch(err) { /* label placement failed silently */ }
+        });
+      }
+    }); // added by updateZoomVisibility
+    return;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// STE LABELS
+// ═══════════════════════════════════════════════════════════
+function buildSTELabels(minZoom, maxZoom, actLabelPos, actAnchorPos) {
+  const CENTROIDS = {
+    'New South Wales':              [-31.8, 146.9],
+    'Victoria':                     [-36.9, 144.5],
+    'Queensland':                   [-22.5, 144.4],
+    'South Australia':              [-29.5, 135.5],
+    'Western Australia':            [-25.5, 121.6],
+    'Tasmania':                     [-42.0, 146.5],
+    'Northern Territory':           [-19.5, 133.4],
+    'Australian Capital Territory': null
+  };
+
+  state.steLabels = [];
+
+  const updateAll = () => {
+    const z       = state.map.getZoom();
+    const visible = state.leafletLayers.STE &&
+                    state.map.hasLayer(state.leafletLayers.STE) &&
+                    z >= minZoom && z <= maxZoom;
+    state.steLabels.forEach(({ elements }) => {
+      elements.forEach(el => {
+        if (visible) { if (!state.map.hasLayer(el)) el.addTo(state.map); }
+        else         { if (state.map.hasLayer(el))  state.map.removeLayer(el); }
+      });
+    });
+  };
+
+  state._updateSTELabels = updateAll;
+  state.map.on('zoomend', updateAll);
+
+  Object.entries(CENTROIDS).forEach(([name, pos]) => {
+    if (!pos) return;
+    const [lat, lng] = pos;
+    const label = L.tooltip({
+      permanent: true, direction: 'center',
+      className: 'ste-label', interactive: false, opacity: 1
+    }).setContent(name).setLatLng([lat, lng]);
+    state.steLabels.push({ elements: [label] });
+  });
+
+  // ACT leader line
+  const actMarker = L.marker(actLabelPos, { opacity: 0, interactive: false, keyboard: false })
+    .bindTooltip('Australian Capital Territory', {
+      permanent: true, direction: 'right',
+      className: 'ste-label ste-label-act', interactive: false, opacity: 1, offset: [2, 0]
+    });
+  const leaderLine = L.polyline([actLabelPos, actAnchorPos],
+    { color: '#00797A', weight: 1.5, opacity: 0.8, dashArray: '4 3', interactive: false });
+  const anchorDot = L.circleMarker(actAnchorPos,
+    { radius: 2.5, color: '#00797A', fillColor: '#00797A', fillOpacity: 1, weight: 0, interactive: false });
+  state.steLabels.push({ elements: [actMarker, leaderLine, anchorDot] });
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function getLGAName(feature) {
+  if (state.lgaNameField && feature.properties?.[state.lgaNameField]) {
+    return feature.properties[state.lgaNameField];
+  }
+  for (const f of CONFIG.layers.LGA.nameField) {
+    if (feature.properties?.[f]) return feature.properties[f];
+  }
+  return 'Unknown LGA';
+}
+
+function toggleLayer(key, visible) {
+  const layer = state.leafletLayers[key];
+  if (!layer) return;
+  if (!visible) {
+    state.map.removeLayer(layer);
+  } else {
+    const z = state.map.getZoom();
+    if ((key === 'LGA' || key === 'Projects') && z < 7) return;
+    state.map.addLayer(layer);
+  }
+}
+
+async function reloadLayers() {
+  log('Reloading layers…', 'info');
+  ['LGA','STE','Projects'].forEach(k => {
+    if (state.leafletLayers[k]) { state.map.removeLayer(state.leafletLayers[k]); state.leafletLayers[k] = null; }
+    state.geoData[k] = null;
+  });
+  // Clear STE labels
+  state.steLabels.forEach(({ elements }) => elements.forEach(el => { try { state.map.removeLayer(el); } catch {} }));
+  state.steLabels = [];
+  await loadAllLayers();
+}
+
+function setStatus(s) {
+  const p = document.getElementById('statusPill');
+  p.className   = 'status-pill ' + s;
+  p.textContent = s.toUpperCase();
+}
+
+function log(msg, type='info') {
+  const el = document.getElementById('logScroll');
+  const ts = new Date().toLocaleTimeString('en-AU', { hour12: false });
+  const d  = document.createElement('div');
+  d.className = `log-entry ${type}`;
+  d.innerHTML = `<span class="ts">${ts}</span>${msg}`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+  if (!document.getElementById('consoleFloat').classList.contains('open') && (type === 'warn' || type === 'error')) {
+    document.getElementById('logBadge').classList.add('visible');
+  }
+}
+
+function toggleConsole() {
+  const panel = document.getElementById('consoleFloat');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    document.getElementById('logBadge').classList.remove('visible');
+    document.getElementById('logScroll').scrollTop = document.getElementById('logScroll').scrollHeight;
+  }
+}
+
+function clearConsole() {
+  document.getElementById('logScroll').innerHTML = '';
+  document.getElementById('logBadge').classList.remove('visible');
+}
+
+// ═══════════════════════════════════════════════════════════
+// LGA SEARCH
+// ═══════════════════════════════════════════════════════════
+let _lgaSearchIndex   = null;
+let _lgaSearchActive  = -1;
+let _lgaSearchMatches = [];
+
+function buildLGASearchIndex() {
+  if (!state.geoData.LGA) return [];
+  return state.geoData.LGA.features.map(f => ({
+    name:    getLGAName(f),
+    state:   f.properties?.state_name_2021 || f.properties?.STATE_NAME_2021 || '',
+    feature: f
+  })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function onLGASearch(val) {
+  const results = document.getElementById('lgaSearchResults');
+  const clear   = document.getElementById('lgaSearchClear');
+  clear.style.display = val ? '' : 'none';
+  _lgaSearchActive = -1;
+  if (!val.trim()) { results.classList.remove('open'); return; }
+  if (!_lgaSearchIndex) _lgaSearchIndex = buildLGASearchIndex();
+  const q       = val.toLowerCase();
+  const matches = _lgaSearchIndex.filter(e => e.name.toLowerCase().includes(q)).slice(0, 20);
+  if (!matches.length) { results.classList.remove('open'); return; }
+  results.innerHTML = matches.map((m, i) => `
+    <div class="lga-result-item" data-idx="${i}"
+         onmousedown="selectLGAResult(${i})"
+         onmouseover="setLGAActive(${i})">
+      <span>${highlightMatch(m.name, val)}</span>
+      <span class="lga-result-state">${m.state}</span>
+    </div>`).join('');
+  _lgaSearchMatches = matches;
+  results.classList.add('open');
+}
+
+function highlightMatch(name, query) {
+  const i = name.toLowerCase().indexOf(query.toLowerCase());
+  if (i < 0) return name;
+  return `${name.slice(0,i)}<b>${name.slice(i, i+query.length)}</b>${name.slice(i+query.length)}`;
+}
+
+function setLGAActive(idx) {
+  _lgaSearchActive = idx;
+  document.querySelectorAll('.lga-result-item').forEach((el, i) =>
+    el.classList.toggle('active', i === idx)
+  );
+}
+
+function onLGASearchKey(e) {
+  const results = document.getElementById('lgaSearchResults');
+  const items   = document.querySelectorAll('.lga-result-item');
+  if (!results.classList.contains('open')) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    setLGAActive(Math.min(_lgaSearchActive + 1, items.length - 1));
+    items[_lgaSearchActive]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    setLGAActive(Math.max(_lgaSearchActive - 1, 0));
+    items[_lgaSearchActive]?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_lgaSearchActive >= 0) selectLGAResult(_lgaSearchActive);
+    else if (_lgaSearchMatches.length) selectLGAResult(0);
+  } else if (e.key === 'Escape') {
+    clearLGASearch();
+  }
+}
+
+function selectLGAResult(idx) {
+  const match = _lgaSearchMatches[idx];
+  if (!match) return;
+  try {
+    const bounds = L.geoJSON(match.feature).getBounds();
+    state.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+    const flash = L.geoJSON(match.feature, {
+      style: { color: '#2d7592', weight: 2.5, fillColor: '#2d7592', fillOpacity: 0.2, dashArray: null }
+    }).addTo(state.map);
+    setTimeout(() => state.map.removeLayer(flash), 2000);
+    log(`Zoomed to LGA: ${match.name} (${match.state})`, 'ok');
+  } catch(e) {
+    log(`LGA zoom failed: ${e.message}`, 'error');
+  }
+  document.getElementById('lgaSearchInput').value = match.name;
+  document.getElementById('lgaSearchClear').style.display = '';
+  document.getElementById('lgaSearchResults').classList.remove('open');
+  _lgaSearchActive = -1;
+}
+
+function clearLGASearch() {
+  document.getElementById('lgaSearchInput').value = '';
+  document.getElementById('lgaSearchClear').style.display = 'none';
+  document.getElementById('lgaSearchResults').classList.remove('open');
+  _lgaSearchActive  = -1;
+  _lgaSearchMatches = [];
+}
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('lgaSearchWrap')?.contains(e.target)) {
+    document.getElementById('lgaSearchResults')?.classList.remove('open');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// PROJECT LIST SEARCH — filters rendered list items in place
+// ═══════════════════════════════════════════════════════════
+function filterProjectList(val) {
+  const clear = document.getElementById('projectSearchClear');
+  if (clear) clear.style.display = val ? '' : 'none';
+  const q = (val || '').toLowerCase().trim();
+  const items = document.querySelectorAll('#projectList .proj-list-item');
+  let visible = 0;
+  items.forEach(item => {
+    const title = item.querySelector('.proj-title')?.textContent || '';
+    const meta  = item.querySelector('.proj-meta')?.textContent  || '';
+    const match = !q || title.toLowerCase().includes(q) || meta.toLowerCase().includes(q);
+    item.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const countEl = document.getElementById('projectListCount');
+  if (countEl) countEl.textContent = q ? `${visible} shown` : `${items.length} unique`;
+}
+
+function clearProjectListSearch() {
+  const input = document.getElementById('projectSearchInput');
+  if (input) input.value = '';
+  filterProjectList('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// ZOOM TO ALL PROJECTS BY TITLE — also filters map to that project
+// ═══════════════════════════════════════════════════════════
+let _highlightedProjectLayers = [];
+let _highlightedLGALayers     = [];
+let _activeProjectSelection   = null;  // title currently selected
+
+function clearProjectHighlights() {
+  _highlightedProjectLayers.forEach(l => {
+    try { l.setStyle({ fillColor: '#f2af00', color: '#003E5A', weight: 1.5, radius: 7, fillOpacity: 0.9 }); } catch {}
+  });
+  _highlightedProjectLayers = [];
+
+  _highlightedLGALayers.forEach(l => {
+    try { l.setStyle({ color: '#003E5A', weight: 1, fillColor: '#003E5A', fillOpacity: 0.04, opacity: 0.7, dashArray: '4 4' }); } catch {}
+  });
+  _highlightedLGALayers = [];
+}
+
+function clearProjectSelection() {
+  _activeProjectSelection = null;
+  state.selectionOverrideZoom = false;
+  clearProjectHighlights();
+  // Restore all points (respecting any active dropdown filters)
+  applyProjectFilters();
+  // Re-apply normal zoom visibility (may hide layers if zoomed out)
+  if (state.updateZoomVisibility) state.updateZoomVisibility();
+  // Hide selection bar
+  document.getElementById('selectionBar').classList.remove('open');
+  document.querySelector('.map-wrap')?.classList.remove('panel-open');
+  state.map.closePopup();
+  log('Selection cleared', 'info');
+}
+
+// Normalise an LGA name for fuzzy matching — strips common suffixes
+function normaliseLGAName(n) {
+  return (n || '').toLowerCase()
+    .replace(/\b(regional|council|city|shire|municipality|district|area|community)\b/g, '')
+    .replace(/\s+/g, ' ').trim();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SHARED PROJECT INFO HTML — used by popup and selection panel
+// ═══════════════════════════════════════════════════════════
+function buildProjectInfoHTML(p, allMatches, title) {
+  const fmt = v => (v != null && v !== '') ? v : '—';
+  const fmtCurrency = v => (v != null && v !== '') ? '$' + Number(v).toLocaleString() : '—';
+  const safeTitle = (title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+  // Build LGA-by-state list
+  let lgaByStateHtml = '';
+  if (allMatches && allMatches.length) {
+    const byState = {};
+    allMatches.forEach(f => {
+      const sp = f.properties || {};
+      const stateKey = sp.STE_ABB || sp.STE_NAME || '?';
+      if (!byState[stateKey]) byState[stateKey] = new Set();
+      if (sp.LGA_NAME) byState[stateKey].add(sp.LGA_NAME);
+    });
+    const statesSorted = Object.keys(byState).sort();
+    if (statesSorted.length) {
+      lgaByStateHtml = statesSorted.map(st => `
+        <div style="margin-bottom:5px">
+          <span style="font-size:11px;font-weight:700;color:var(--accent);font-family:Arial,monospace">${st}:</span>
+          <span style="font-size:11px;color:var(--muted)"> ${[...byState[st]].sort().join(', ')}</span>
+        </div>`).join('');
+    }
+  }
+
+  const program    = p.parent_program_name || p.program_name || '';
+  const subprogram = p.sub_program_name || '';
+  const subtitle   = [program, subprogram].filter(Boolean).join(' › ');
+  const description = p.project_description || '';
+
+  // Single-column layout matching popup structure
+  return `
+    <div style="color:var(--text);font-family:Arial,sans-serif">
+      ${subtitle ? `<div style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:10px;line-height:1.4">${subtitle}</div>` : ''}
+      <table style="font-size:12px;width:100%;border-collapse:collapse;margin-bottom:10px">
+        <tr><td style="color:var(--muted);padding:3px 10px 3px 0;white-space:nowrap;vertical-align:top">Program</td>
+            <td style="color:var(--text)">${fmt(p.parent_program_name || p.program_name)}</td></tr>
+        <tr><td style="color:var(--muted);padding:3px 10px 3px 0;white-space:nowrap;vertical-align:top">Sub-program</td>
+            <td style="color:var(--text)">${fmt(p.sub_program_name)}</td></tr>
+        <tr><td style="color:var(--muted);padding:3px 10px 3px 0;white-space:nowrap">Funding</td>
+            <td style="color:var(--text);font-weight:600">${fmtCurrency(p.project_value_funding)}</td></tr>
+        <tr><td style="color:var(--muted);padding:3px 10px 3px 0;white-space:nowrap">Total value</td>
+            <td style="color:var(--text);font-weight:600">${fmtCurrency(p.project_value_total)}</td></tr>
+        ${allMatches ? `<tr><td style="color:var(--muted);padding:3px 10px 3px 0;white-space:nowrap">Locations</td>
+            <td style="color:var(--text)">${allMatches.length}</td></tr>` : ''}
+      </table>
+      ${description
+        ? `<div style="font-size:13px;color:var(--text);line-height:1.6;padding-top:10px;
+                       border-top:1px solid rgba(255,255,255,0.1);margin-bottom:12px">${description}</div>`
+        : ''}
+      ${lgaByStateHtml
+        ? `<div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:10px">
+             <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;
+                         letter-spacing:0.05em;margin-bottom:6px;font-family:Arial,monospace">LGAs</div>
+             ${lgaByStateHtml}
+           </div>`
+        : ''}
+      <button onclick="clearProjectSelection()"
+              onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'"
+              onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"
+              style="margin-top:16px;width:100%;padding:6px 10px;background:transparent;
+                     border:1px solid var(--border);color:var(--muted);border-radius:4px;
+                     font-size:11px;cursor:pointer;font-family:Arial,monospace;transition:all 0.15s">
+        ✕ Clear selection
+      </button>
+    </div>`;
+}
+
+function zoomToProjectsByTitle(title) {
+  if (!state.geoData.Projects) return;
+  state.map.closePopup();
+  _activeProjectSelection = title;
+
+  const matches = state.geoData.Projects.features.filter(f =>
+    f.properties?.project_title === title && f.geometry
+  );
+  if (!matches.length) { log(`No features found for: ${title}`, 'warn'); return; }
+
+  // Zoom to bounds of matched LGA polygons (not point coords)
+  // Collect matched LGA codes AND names from project features for dual-strategy matching
+  const matchedLGACodes = new Set(matches.map(f => f.properties?.LGA_CODE).filter(Boolean).map(String));
+  const matchedLGANames = new Set(matches.map(f => f.properties?.LGA_NAME).filter(Boolean));
+  const normalisedProjectNames = new Set([...matchedLGANames].map(normaliseLGAName));
+
+  const lgaLayerMatches = layer => {
+    if (state.lgaCodeField) {
+      const code = String(layer.feature?.properties?.[state.lgaCodeField] ?? '');
+      if (matchedLGACodes.size > 0 && matchedLGACodes.has(code)) return true;
+    }
+    return normalisedProjectNames.has(normaliseLGAName(getLGAName(layer.feature)));
+  };
+
+  let minLat =  90, maxLat = -90, minLng =  180, maxLng = -180;
+  let lgaBoundsFound = false;
+
+  if (state.leafletLayers.LGA) {
+    state.leafletLayers.LGA.eachLayer(layer => {
+      if (!lgaLayerMatches(layer)) return;
+      const geom = layer.feature?.geometry;
+      if (!geom) return;
+      const coords = geom.type === 'MultiPolygon' ? geom.coordinates.flat(2) : geom.coordinates.flat(1);
+      coords.forEach(([lng, lat]) => {
+        if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+        if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+        lgaBoundsFound = true;
+      });
+    });
+  }
+
+  // Fall back to point coords if LGA geometry not available
+  if (!lgaBoundsFound) {
+    matches.forEach(f => {
+      const [lng, lat] = f.geometry.coordinates;
+      if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+      if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+    });
+  }
+
+  state.map.fitBounds([[minLat, minLng],[maxLat, maxLng]], { padding: [60, 60], maxZoom: 12 });
+
+  // Override zoom visibility so layers stay visible even at national zoom
+  state.selectionOverrideZoom = true;
+  if (state.leafletLayers.LGA && !state.map.hasLayer(state.leafletLayers.LGA))
+    state.leafletLayers.LGA.addTo(state.map);
+  if (state.leafletLayers.Projects && !state.map.hasLayer(state.leafletLayers.Projects))
+    state.leafletLayers.Projects.addTo(state.map);
+
+  // Hide non-matching points, highlight matching ones
+  clearProjectHighlights();
+  if (state.leafletLayers.Projects) {
+    state.leafletLayers.Projects.eachLayer(layer => {
+      const p  = layer.feature?.properties;
+      const el = layer.getElement ? layer.getElement() : null;
+      if (p?.project_title === title) {
+        if (el) el.style.display = '';
+        layer.setStyle({ fillColor: '#ffffff', color: '#00797A', weight: 3, radius: 10, fillOpacity: 1 });
+        layer.bringToFront();
+        _highlightedProjectLayers.push(layer);
+      } else {
+        if (el) el.style.display = 'none';
+      }
+    });
+  }
+
+  // Highlight matching LGA polygons
+  if (state.leafletLayers.LGA) {
+    state.leafletLayers.LGA.eachLayer(layer => {
+      if (!lgaLayerMatches(layer)) return;
+      layer.setStyle({ color: '#f2af00', weight: 2.5, fillColor: '#f2af00', fillOpacity: 0.15, opacity: 1, dashArray: null });
+      layer.bringToFront();
+      _highlightedLGALayers.push(layer);
+    });
+  }
+
+  // Show selection panel
+  const bar    = document.getElementById('selectionBar');
+  const body   = document.getElementById('selectionBarBody');
+  const tagEl  = document.getElementById('selectionPanelTag');
+  const rep    = matches[0]?.properties || {};
+  if (tagEl) tagEl.textContent = title;
+  body.innerHTML = buildProjectInfoHTML(rep, matches, title);
+  // Open panel first, then re-fit with right padding after transition
+  bar.classList.add('open');
+  document.querySelector('.map-wrap')?.classList.add('panel-open');
+  setTimeout(() => {
+    state.map.fitBounds([[minLat, minLng],[maxLat, maxLng]], {
+      paddingTopLeft:     [60, 60],
+      paddingBottomRight: [360, 60],
+      maxZoom: 12
+    });
+  }, 320);
+
+  log(`Zoomed to ${matches.length} location${matches.length !== 1 ? 's' : ''} for "${title}"`, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROJECT FILTERS — fully cascading
+// Each dropdown shows only values present in features that
+// pass ALL other currently-active filters.
+// ═══════════════════════════════════════════════════════════
+let _activeFilters = { state: '', lga: '', program: '', subprogram: '' };
+
+function getFilteredFeatures(excludeKey) {
+  // Returns features that match all active filters EXCEPT the one named by excludeKey.
+  // Used to compute valid options for each dropdown.
+  if (!state.geoData.Projects) return [];
+  return state.geoData.Projects.features.filter(f => {
+    const p = f.properties || {};
+    return (
+      (excludeKey === 'state'      || !_activeFilters.state      || p.STE_NAME           === _activeFilters.state)      &&
+      (excludeKey === 'lga'        || !_activeFilters.lga        || p.LGA_NAME            === _activeFilters.lga)        &&
+      (excludeKey === 'program'    || !_activeFilters.program    || p.parent_program_name === _activeFilters.program)    &&
+      (excludeKey === 'subprogram' || !_activeFilters.subprogram || p.sub_program_name    === _activeFilters.subprogram)
+    );
+  });
+}
+
+function buildProjectFilterDropdowns() {
+  if (!state.geoData.Projects) return;
+  refreshAllDropdowns();
+}
+
+function refreshAllDropdowns() {
+  // Recompute each dropdown's options based on all other active filters
+  const refreshSelect = (id, key, field, placeholder) => {
+    const sel  = document.getElementById(id);
+    const cur  = _activeFilters[key];
+    const opts = [...new Set(getFilteredFeatures(key).map(f => f.properties?.[field] || '').filter(Boolean))].sort();
+    sel.innerHTML = `<option value="">${placeholder}</option>` +
+      opts.map(o => `<option value="${o}">${o}</option>`).join('');
+    // Restore current value (innerHTML reset clears it in some browsers)
+    if (cur && opts.includes(cur)) {
+      sel.value = cur;
+    } else if (cur && !opts.includes(cur)) {
+      sel.value = '';
+      _activeFilters[key] = '';
+    }
+  };
+
+  refreshSelect('filterState',      'state',      'STE_NAME',           'All states');
+  refreshSelect('filterLGA',        'lga',        'LGA_NAME',            'All LGAs');
+  refreshSelect('filterProgram',    'program',    'parent_program_name', 'All programs');
+  refreshSelect('filterSubprogram', 'subprogram', 'sub_program_name',    'All sub-programs');
+}
+
+function onFilterChange(key) {
+  // _activeFilters[key] already set by fcSelect before this is called
+  refreshAllDropdowns();
+  applyProjectFilters();
+  if (key === 'state' || key === 'lga') zoomToFilteredGeography();
+}
+
+function zoomToFilteredGeography() {
+  if (!state.geoData.LGA) return;
+  const filterLGA   = _activeFilters.lga;
+  const filterState = _activeFilters.state;
+
+  // No geography filter active — don't force a zoom
+  if (!filterLGA && !filterState) return;
+
+  // Find matching LGA features
+  const matches = state.geoData.LGA.features.filter(f => {
+    const p = f.properties || {};
+    const lgaName   = getLGAName(f);
+    const stateName = p.STE_NAME || p.state_name_2021 || p.STATE_NAME_2021 || '';
+    if (filterLGA   && lgaName   !== filterLGA)   return false;
+    if (filterState && stateName !== filterState)  return false;
+    return true;
+  });
+
+  if (!matches.length) return;
+
+  // Compute combined bounds from all matching polygon coordinates
+  let minLat =  90, maxLat = -90, minLng =  180, maxLng = -180;
+  matches.forEach(f => {
+    const geom = f.geometry;
+    if (!geom) return;
+    const rings = geom.type === 'MultiPolygon'
+      ? geom.coordinates.flat(2)
+      : geom.coordinates.flat(1);
+    rings.forEach(([lng, lat]) => {
+      if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+      if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+    });
+  });
+
+  if (minLat === 90) return; // no valid coords found
+
+  // Override zoom visibility so LGA layer stays visible even if zoomed out
+  state.selectionOverrideZoom = true;
+  if (state.leafletLayers.LGA && true &&
+      !state.map.hasLayer(state.leafletLayers.LGA))
+    state.leafletLayers.LGA.addTo(state.map);
+  if (state.leafletLayers.Projects && true &&
+      !state.map.hasLayer(state.leafletLayers.Projects))
+    state.leafletLayers.Projects.addTo(state.map);
+
+  state.map.fitBounds([[minLat, minLng],[maxLat, maxLng]], { padding: [40, 40], maxZoom: 12 });
+  log(`Zoomed to ${filterLGA || filterState}`, 'ok');
+}
+
+function applyProjectFilters() {
+  // If a point selection is active, clear it first so filters take over
+  if (_activeProjectSelection) {
+    _activeProjectSelection = null;
+    state.selectionOverrideZoom = false;
+    clearProjectHighlights();
+    document.getElementById('selectionBar').classList.remove('open');
+    document.querySelector('.map-wrap')?.classList.remove('panel-open');
+    if (state.updateZoomVisibility) state.updateZoomVisibility();
+  }
+
+  const active = Object.values(_activeFilters).filter(Boolean).length;
+  const countEl = document.getElementById('filterCount');
+  const clearEl = document.getElementById('clearFiltersBtn');
+  clearEl.classList.toggle('active', active > 0);
+  if (active) {
+    countEl.style.display = '';
+    countEl.textContent = `${active} filter${active !== 1 ? 's' : ''} active`;
+  } else {
+    countEl.style.display = 'none';
+  }
+
+  // Highlight chips that have a value set
+  ['state','lga','program','subprogram'].forEach(key => {
+    const chipId = { state:'chipState', lga:'chipLGA', program:'chipProgram', subprogram:'chipSubprogram' }[key];
+    document.getElementById(chipId)?.classList.toggle('has-value', !!_activeFilters[key]);
+  });
+
+  // If filters are active and layers hidden by zoom, make them visible FIRST
+  // so getElement() works when we set display styles below
+  if (active && state.map && state.map.getZoom() <= 6) {
+    state.selectionOverrideZoom = true;
+    if (state.leafletLayers.LGA && !state.map.hasLayer(state.leafletLayers.LGA))
+      state.leafletLayers.LGA.addTo(state.map);
+    if (state.leafletLayers.Projects && !state.map.hasLayer(state.leafletLayers.Projects))
+      state.leafletLayers.Projects.addTo(state.map);
+  }
+
+  const passing = [];
+
+  if (state.leafletLayers.Projects) {
+    state.leafletLayers.Projects.eachLayer(layer => {
+      const p = layer.feature?.properties || {};
+      const pass =
+        (!_activeFilters.state      || p.STE_NAME           === _activeFilters.state)      &&
+        (!_activeFilters.lga        || p.LGA_NAME            === _activeFilters.lga)        &&
+        (!_activeFilters.program    || p.parent_program_name === _activeFilters.program)    &&
+        (!_activeFilters.subprogram || p.sub_program_name    === _activeFilters.subprogram);
+
+      const el = layer.getElement ? layer.getElement() : null;
+      if (el) el.style.display = pass ? '' : 'none';
+      if (pass) passing.push(layer.feature);
+    });
+  }
+
+  const shown = passing.length;
+  if (active) {
+    countEl.style.display = '';
+    countEl.textContent = `${shown} point${shown !== 1 ? 's' : ''} shown`;
+  } else {
+    countEl.style.display = 'none';
+    // Restore normal zoom visibility when all filters cleared
+    state.selectionOverrideZoom = false;
+    if (state.updateZoomVisibility) state.updateZoomVisibility();
+  }
+
+  renderProjectList(passing);
+}
+
+function renderProjectList(features) {
+  const panel   = document.getElementById('projectListPanel');
+  const listEl  = document.getElementById('projectList');
+  const countEl = document.getElementById('projectListCount');
+
+  // Remove skeleton once real data arrives
+  const skeleton = document.getElementById('projectListSkeleton');
+  if (skeleton) skeleton.remove();
+
+  // Reset search input when list is re-rendered
+  const searchInput = document.getElementById('projectSearchInput');
+  if (searchInput) { searchInput.value = ''; }
+  const searchClear = document.getElementById('projectSearchClear');
+  if (searchClear) searchClear.style.display = 'none';
+
+  if (!features || !features.length) {
+    listEl.innerHTML = '<div style="font-size:12px;color:var(--muted);font-family:Arial,monospace;padding:12px;text-align:center">No projects match</div>';
+    countEl.textContent = '0';
+    return;
+  }
+
+  // Deduplicate by project_title, collecting states per title
+  const TOTAL_STATES = 8; // Australia has 6 states + 2 territories
+  const map = new Map();
+  features.forEach(f => {
+    const p     = f.properties || {};
+    const title = p.project_title || '—';
+    if (!map.has(title)) map.set(title, { title, lgas: new Set(), states: new Set(), program: p.parent_program_name || '' });
+    if (p.LGA_NAME) map.get(title).lgas.add(p.LGA_NAME);
+    if (p.STE_NAME) map.get(title).states.add(p.STE_NAME);
+  });
+
+  const unique = [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
+  countEl.textContent = `(${unique.length})`;
+
+  listEl.innerHTML = unique.map(proj => {
+    const stateCount = proj.states.size;
+    const stateText  = stateCount === 0 ? '' :
+                       stateCount >= TOTAL_STATES ? 'National' :
+                       stateCount > 1 ? 'Multiple states' :
+                       [...proj.states][0];
+    return `<div class="proj-list-item" onclick="zoomToProjectsByTitle('${proj.title.replace(/'/g, "\\'")}')">
+      <div class="proj-title">${proj.title}</div>
+      ${proj.program ? `<div class="proj-meta">${proj.program}</div>` : ''}
+      ${stateText ? `<div class="proj-meta">${stateText}</div>` : ''}
+    </div>`;
+  }).join('');
+
+}
+
+function clearProjectFilters() {
+  _activeFilters = { state: '', lga: '', program: '', subprogram: '' };
+  document.getElementById('filterState').value      = '';
+  document.getElementById('filterLGA').value        = '';
+  document.getElementById('filterProgram').value    = '';
+  document.getElementById('filterSubprogram').value = '';
+  state.selectionOverrideZoom = false;
+  refreshAllDropdowns();
+  applyProjectFilters();
+  if (state.updateZoomVisibility) state.updateZoomVisibility();
+  fcSyncInputs();
+}
+
+// ═══════════════════════════════════════════════════════════
+// FILTER CHIPS — type-to-filter inputs, independent of <select>
+// ═══════════════════════════════════════════════════════════
+const FC = {
+  state:      { inputId: 'fcState',      dropId: 'fcDropState',      clearId: 'fcClearState',      chipId: 'chipState',      key: 'state' },
+  lga:        { inputId: 'fcLGA',        dropId: 'fcDropLGA',        clearId: 'fcClearLGA',        chipId: 'chipLGA',        key: 'lga' },
+  program:    { inputId: 'fcProgram',    dropId: 'fcDropProgram',    clearId: 'fcClearProgram',    chipId: 'chipProgram',    key: 'program' },
+  subprogram: { inputId: 'fcSubprogram', dropId: 'fcDropSubprogram', clearId: 'fcClearSubprogram', chipId: 'chipSubprogram', key: 'subprogram' }
+};
+const FC_FIELDS = { state: 'STE_NAME', lga: 'LGA_NAME', program: 'parent_program_name', subprogram: 'sub_program_name' };
+let _fcActive = null; // which key is currently open
+
+function fcGetOptions(key) {
+  if (!state.geoData.Projects) return [];
+  const field = FC_FIELDS[key];
+  return [...new Set(getFilteredFeatures(key).map(f => f.properties?.[field] || '').filter(Boolean))].sort();
+}
+
+function fcOpen(key) {
+  if (_fcActive && _fcActive !== key) fcClose(_fcActive);
+  _fcActive = key;
+  // Position dropdown below the input using fixed coords
+  const input = document.getElementById(FC[key].inputId);
+  const drop  = document.getElementById(FC[key].dropId);
+  if (input && drop) {
+    const r = input.getBoundingClientRect();
+    drop.style.top      = (r.bottom + 4) + 'px';
+    drop.style.left     = r.left + 'px';
+    drop.style.width    = Math.max(r.width + 60, 200) + 'px';
+    drop.style.maxHeight = key === 'state' ? 'none' : '220px';
+  }
+  fcRender(key, input?.value || '');
+}
+
+function fcRender(key, q) {
+  const { dropId, inputId } = FC[key];
+  const drop  = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  const opts  = fcGetOptions(key).filter(o => !q || o.toLowerCase().includes(q.toLowerCase()));
+  const cur   = _activeFilters[key];
+
+  drop.innerHTML = [
+    `<div class="fc-option${!cur ? ' active' : ''}" data-val="">All</div>`,
+    ...opts.map(o => `<div class="fc-option${o === cur ? ' active' : ''}" data-val="${o.replace(/"/g,'&quot;')}">${
+      q ? o.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<b>$1</b>') : o
+    }</div>`)
+  ].join('');
+
+  drop.querySelectorAll('.fc-option').forEach(el => {
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      fcSelect(key, el.getAttribute('data-val'), el.textContent.trim() === 'All' ? '' : el.textContent.trim());
+    });
+  });
+  drop.classList.add('open');
+}
+
+function fcSelect(key, val, label) {
+  _activeFilters[key] = val;
+  const { inputId, clearId, chipId } = FC[key];
+  const input = document.getElementById(inputId);
+  const clear = document.getElementById(clearId);
+  if (input) input.value = label;
+  if (clear) clear.style.display = val ? '' : 'none';
+  document.getElementById(chipId)?.classList.toggle('has-value', !!val);
+  fcClose(key);
+  refreshAllDropdowns();
+  applyProjectFilters();
+  if (key === 'state' || key === 'lga') zoomToFilteredGeography();
+}
+
+function fcClose(key) {
+  document.getElementById(FC[key].dropId)?.classList.remove('open');
+  if (_fcActive === key) _fcActive = null;
+}
+
+function fcClear(key) {
+  fcSelect(key, '', '');
+  document.getElementById(FC[key].inputId)?.focus();
+}
+
+function fcSyncInputs() {
+  Object.keys(FC).forEach(key => {
+    const { inputId, clearId, chipId } = FC[key];
+    const val = _activeFilters[key];
+    const input = document.getElementById(inputId);
+    const clear = document.getElementById(clearId);
+    if (input) input.value = val || '';
+    if (clear) clear.style.display = val ? '' : 'none';
+    document.getElementById(chipId)?.classList.toggle('has-value', !!val);
+  });
+}
+
+function initFilterChips() {
+  Object.keys(FC).forEach(key => {
+    const { inputId, dropId } = FC[key];
+    const input = document.getElementById(inputId);
+    const drop  = document.getElementById(dropId);
+    if (!input) return;
+    input.addEventListener('focus', () => fcOpen(key));
+    input.addEventListener('click', () => fcOpen(key));
+    input.addEventListener('input', () => fcRender(key, input.value));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { fcClose(key); input.blur(); }
+      if (e.key === 'Enter') {
+        const first = drop.querySelector('.fc-option:not([data-val=""])');
+        if (first) { const val = first.getAttribute('data-val'); fcSelect(key, val, first.textContent.trim()); }
+      }
+    });
+    input.addEventListener('blur', () => setTimeout(() => fcClose(key), 160));
+  });
+  document.addEventListener('click', e => {
+    if (_fcActive) {
+      const { inputId, dropId } = FC[_fcActive];
+      const wrap = document.getElementById(inputId)?.closest('.filter-chip');
+      if (wrap && !wrap.contains(e.target)) fcClose(_fcActive);
+    }
+  });
+}
+
+window.addEventListener('load', initMap);
+</script>
+</body>
+</html>
